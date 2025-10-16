@@ -2,6 +2,7 @@ package com.redhands.user_service.service;
 
 import com.redhands.user_service.dto.LoginRequest;
 import com.redhands.user_service.dto.SignupRequest;
+import com.redhands.user_service.entity.RefreshToken;
 import com.redhands.user_service.entity.User;
 import com.redhands.user_service.repository.UserRepository;
 import com.redhands.user_service.util.JwtUtil;
@@ -9,12 +10,16 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @Service
 @RequiredArgsConstructor
 public class UserService {
 
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
+    private final RefreshTokenService refreshTokenService;
 
     /**
      * 회원가입
@@ -37,9 +42,9 @@ public class UserService {
     }
 
     /**
-     * 로그인 (JWT 발급)
+     * 로그인 (Access Token + Refresh Token 발급)
      */
-    public String login(LoginRequest request) {
+    public Map<String, String> login(LoginRequest request) {
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다"));
 
@@ -48,7 +53,31 @@ public class UserService {
             throw new RuntimeException("비밀번호가 일치하지 않습니다");
         }
 
-        // JWT 토큰 생성
+        // Access Token 생성
+        String accessToken = jwtUtil.generateToken(user.getUsername(), user.getRole());
+
+        // Refresh Token 생성
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
+
+        Map<String, String> tokens = new HashMap<>();
+        tokens.put("accessToken", accessToken);
+        tokens.put("refreshToken", refreshToken.getToken());
+
+        return tokens;
+    }
+
+    /**
+     * Refresh Token으로 Access Token 갱신
+     */
+    @Transactional
+    public String refreshAccessToken(String refreshTokenStr) {
+        RefreshToken refreshToken = refreshTokenService.findByToken(refreshTokenStr);
+
+        // 만료 확인
+        refreshTokenService.verifyExpiration(refreshToken);
+
+        // 새 Access Token 생성
+        User user = refreshToken.getUser();
         return jwtUtil.generateToken(user.getUsername(), user.getRole());
     }
 
