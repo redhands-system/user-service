@@ -7,6 +7,7 @@ import com.redhands.user_service.entity.User;
 import com.redhands.user_service.repository.UserRepository;
 import com.redhands.user_service.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +21,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
     private final RefreshTokenService refreshTokenService;
+    private final PasswordEncoder passwordEncoder;
 
     /**
      * 회원가입
@@ -31,10 +33,10 @@ public class UserService {
             throw new RuntimeException("이미 존재하는 사용자명입니다");
         }
 
-        // User 생성 (비밀번호 평문 저장 - 실제로는 BCrypt 사용)
+        // User 생성
         User user = new User();
         user.setUsername(request.getUsername());
-        user.setPassword(request.getPassword());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));  // 암호화
         user.setEmail(request.getEmail());
         user.setRole("USER");  // 기본 권한
 
@@ -42,14 +44,14 @@ public class UserService {
     }
 
     /**
-     * 로그인 (Access Token + Refresh Token 발급)
+     * 로그인 (Access Token + Refresh Token 발급) (암호화된 비밀번호 비교)
      */
     public Map<String, String> login(LoginRequest request) {
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다"));
 
-        // 비밀번호 확인 (평문 비교 - 실제로는 BCrypt)
-        if (!user.getPassword().equals(request.getPassword())) {
+        // 비밀번호 확인 (암호화된 것과 비교)
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new RuntimeException("비밀번호가 일치하지 않습니다");
         }
 
