@@ -38,7 +38,7 @@ public class UserService {
         user.setUsername(request.getUsername());
         user.setPassword(passwordEncoder.encode(request.getPassword()));  // 암호화
         user.setEmail(request.getEmail());
-        user.setRole("USER");  // 기본 권한
+        user.setRole(request.getRole());
 
         return userRepository.save(user);
     }
