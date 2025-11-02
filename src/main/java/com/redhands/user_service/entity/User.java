@@ -23,7 +23,7 @@ public class User {
     private String password;  // 실제로는 암호화 필요 (BCrypt)
 
     @Column(nullable = false)
-    private String role;  // USER, ADMIN
+    private String role = "USER";  // USER, ADMIN
 
     @Column
     private String email;
